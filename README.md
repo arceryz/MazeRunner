@@ -1,5 +1,7 @@
 # MazeRunner
 
+![](MazeRunner.gif)
+
 This project is still a work in progress for a game I am working on.
 
 Core features:
