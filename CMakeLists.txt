@@ -4,7 +4,7 @@ project(MazeRunner VERSION 0.1.0 LANGUAGES C CXX)
 find_package(nlohmann_json 3.11.3 REQUIRED)
 find_package(raylib REQUIRED)
 
-file(GLOB SOURCES *.cpp *.h)
+file(GLOB SOURCES Source/*.cpp Source/*.h)
 
 add_executable(MazeRunner ${SOURCES})
 message(STATUS "\n<3 here is sources: ${SOURCES}\n")

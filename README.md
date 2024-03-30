@@ -4,6 +4,8 @@
 
 This project is still a work in progress for a game I am working on.
 
+## Feature Progress
+
 Core features:
 - Junction placement, naming, sizing
 - Edge placement, naming
@@ -14,3 +16,9 @@ Core features:
 Future features:
 - Visual maze generation
 - Realtime maze/player visualisation connecting to running game
+
+## JSON Export
+
+The mazes are loaded to and from readable JSON.
+
+![](export_example.png)

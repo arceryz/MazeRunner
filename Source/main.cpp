@@ -11,14 +11,14 @@
 
 int main() {
     SetTraceLogLevel(LOG_ERROR);
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
     SetTargetFPS(144);
     InitWindow(1280, 720, "MazeRunner");
     rlImGuiSetup(true);
     ImGui::GetIO().IniFilename = NULL;
 
     Maze maze;
-    maze.ImportJson("Mazes/test.json");
+    maze.ImportJson("Examples/test.json");
     MazeEditor editor(maze);
 
     while (!WindowShouldClose()) {

@@ -429,38 +429,52 @@ void Maze::ExportJson(string filename)
 {
     // Here we get all vertices and push them back.
     json junclist;
+
+    string output = "{\n";
+    output += TextFormat("\t\"mazeName\": \"%s\",\n", name.c_str());
+
     vector<JunctionID> junctions = GetJunctionList();
-    for (JunctionID id: junctions) {
-        Junction &j = id_to_junction[id];
-        Coord coords = id_to_coord[id];
-        junclist.push_back({ coords.x, coords.y, j.id, j.name } );
+    output += "\t\"junctions\": [\n";
+    for (int i = 0; i < junctions.size(); i++) {
+        JunctionID id = junctions[i];
+        Junction &j = GetJunction(id);
+        Coord coords = GetJunctionCoord(id);
+        JunctionRect jr = GetJunctionRect(id);
+        output += TextFormat("\t\t[ \"%s\", %d, %d, %d, %d, %d, %d, %d ]%s\n",
+            j.name.c_str(), j.id, coords.x, coords.y, jr.top.x, jr.top.y, jr.bot.x, jr.bot.y, i < junctions.size()-1 ? "," : "");
     };
+    output += "\t],\n";
 
     // Here we get all edges and push them back.
-    json edgelist;
+    output += "\t\"tunnels\": [\n";
     vector<Tunnel> tunnels = GetTunnelList();
-    for (Tunnel t: tunnels) {
-        Junction j1 = id_to_junction[t.from];
-        Junction j2 = id_to_junction[t.to];
-        edgelist.push_back(to_string(j1.id) + string(",") + to_string(j2.id));
+    for (int i = 0; i < tunnels.size(); i++) {
+        Tunnel t = tunnels[i];
+        output += TextFormat("\t\t[ %d, %d ]%s\n", t.from, t.to, i < tunnels.size()-1 ? "," : "");
     }
+    output += "\t],\n";
 
     // Here we get all the edges and push them back.
-    json tags;
     vector<TagCoord> tagCoords = GetTagsList();
-    for (TagCoord tc: tagCoords) {
-        tags.push_back({ tc.coord.x, tc.coord.y, tc.tags });
+    output += "\t\"tags\": [\n";
+    for (int i = 0; i < tagCoords.size(); i++) {
+        TagCoord tc = tagCoords[i];
+        output += TextFormat("\t\t[ %d, %d, [ ", tc.coord.x, tc.coord.y);
+
+        for (int j = 0; j < tc.tags.size(); j++) {
+            string s = tc.tags[j];
+            output += TextFormat("\"%s\"%s ", s.c_str(), j < tc.tags.size()-1 ? "," : "");
+        }
+
+        output += TextFormat("]]%s\n", i < tagCoords.size()-1 ? "," : "");
     }
+    output += "\t]\n";
 
-    ordered_json jfile = {
-        {"mazeName", name },
-        {"junctions", junclist },
-        {"tunnels", edgelist },
-        {"tags", tags }
-    };
-
+    output += "}";
     ofstream file(filename);
-    file << jfile.dump(4);
+    file << output;
+    file.close();
+
     printf("Written maze \"%s\" to json \"%s\"", name.c_str(), filename.c_str());
 }
 void Maze::ImportJson(string filename)
@@ -469,24 +483,30 @@ void Maze::ImportJson(string filename)
     if (!stream.good())
         return;
     json imported = json::parse(stream);
+    stream.close();
     name = imported["mazeName"];
 
     json juncs = imported["junctions"];
     for (json junction: juncs) {
-        string s = junction.at(3);
-        JunctionID id = junction.at(2);
-        int x = junction.at(0);
-        int y = junction.at(1);
+        string s = junction.at(0);
+        JunctionID id = junction.at(1);
+        int x = junction.at(2);
+        int y = junction.at(3);
+
+        JunctionRect jr;
+        jr.top.x = junction.at(4);
+        jr.top.y = junction.at(5);
+        jr.bot.x = junction.at(6);
+        jr.bot.y = junction.at(7);
+
         AddJunction(x, y, s, id);
+        SetJunctionRect(id, jr);
     }
 
     json tunnels = imported["tunnels"];
-    for (string tunnel: tunnels) {
-        int mid = tunnel.find(",");
-        string s1 = tunnel.substr(0, mid);
-        string s2 = tunnel.substr(mid+1, tunnel.length());
-        JunctionID j1 = stoi(s1);
-        JunctionID j2 = stoi(s2);
+    for (json tunnel: tunnels) {
+        JunctionID j1 = tunnel.at(0);
+        JunctionID j2 = tunnel.at(1);
         AddTunnel(j1, j2);
     }
 

@@ -212,7 +212,7 @@ public:
     }
     void CenterHome()
     {
-        vector<string> options = { "H", "Home", "Haven", "Start", "Center", "S", "C" };
+        vector<string> options = { "H", "Home", "Haven", "Start", "Center", "S", "C", "G" };
 
         // Center to the home junction.
         JunctionID homeId = 0;
@@ -260,7 +260,7 @@ public:
 
         Gui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_Once);
         Gui::SetNextWindowSize(ImVec2(350, 300), ImGuiCond_Once);
-        Gui::Begin("Primary", NULL, ImGuiWindowFlags_NoTitleBar);
+        Gui::Begin("Control Panel");
         Gui::PushItemWidth(-130);
         DrawGuiMenuBar();
         DrawGuiEditorSettings();
