@@ -2,20 +2,24 @@
 
 ![](MazeRunner.gif)
 
-This project is still a work in progress for a game I am working on.
+This project is still a work in progress for a game I am working on. 
+Please refer to the task list below to see what features are currently available.-
 
 ## Feature Progress
 
 Core features:
-- Junction placement, naming, sizing
-- Edge placement, naming
-- Tagging of any grid cell with strings
-- Export to JSON for import in Unity C# and other engines
-- Partitioning in sectors and junction naming by sector (North East South West etc).
+- [x] Junction placement, naming, sizing
+- [x] Edge placement
+- [x] Tagging of any grid cell with strings
+- [x] JSON export/import function
+- [ ] File management/Export UI
+- [ ] Sector partitioning. Junction naming and coloring by sector.
 
-Future features:
-- Visual maze generation
-- Realtime maze/player visualisation connecting to running game
+Extra: 
+- [ ] Advanced junction moving features
+- [ ] Tag managing and coloring
+- [ ] Interactive maze generation
+- [ ] Realtime player location visualiser through sockets
 
 ## JSON Export
 
