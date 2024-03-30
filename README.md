@@ -12,10 +12,10 @@ Core features:
 - [x] Edge placement
 - [x] Tagging of any grid cell with strings
 - [x] JSON export/import function
-- [ ] File management/Export UI
-- [ ] Sector partitioning. Junction naming and coloring by sector.
+- [x] File dialog/Export UI
 
 Extra: 
+- [ ] Sector partitioning. Junction naming and coloring by sector.
 - [ ] Advanced junction moving features
 - [ ] Tag managing and coloring
 - [ ] Interactive maze generation

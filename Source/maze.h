@@ -5,8 +5,10 @@
 #include <unordered_map>
 #include <vector>
 #include <cstdint>
+#include <filesystem>
 
 using namespace std;
+namespace fs = filesystem;
 
 typedef uint32_t JunctionID;
 typedef string CoordID;
@@ -72,6 +74,7 @@ public:
     unordered_map<CoordID, vector<string>> coord_to_tags;
 
     Maze();
+    void Erase();
 
     // Junction methods.
     void AddJunction(int x, int y, string name, JunctionID id=0);
@@ -104,8 +107,8 @@ public:
     vector<TagCoord> GetTagsList(); 
 
     // IO Methods.
-    void ExportJson(string filename);
-    void ImportJson(string filename);
+    bool ExportJson(fs::path path);
+    bool ImportJson(fs::path path);
 };
 
 #endif

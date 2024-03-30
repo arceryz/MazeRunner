@@ -9,6 +9,9 @@
 #include <raylib.h>
 #include <raygui.h>
 #include <raymath.h>
+#include <vector>
+#include <string>
+using namespace std;
 
 struct ArcGlobal {
     Camera2D camera;
@@ -40,6 +43,7 @@ bool PositionGizmo(Vector2 &position, Vector2 &anchor, bool &grabbed, float size
 Color LerpColor(Color from, Color to, float factor);
 Color ColorFromNormalized3(float arr[3]);
 void ColorToFloat3(Color col, float arr[3]);
+void StringsToPointers(vector<string> &vec, const char **pointers, int n);
 
 #endif
 
@@ -194,6 +198,12 @@ void ColorToFloat3(Color col, float arr[3])
     arr[0] = ((float)col.r)/255.0;
     arr[1] = ((float)col.g)/255.0;
     arr[2] = ((float)col.b)/255.0;
+}
+void StringsToPointers(vector<string> &vec, const char **pointers, int n)
+{
+    for (int i = 0; i < vec.size() && i < n; i++) {
+        pointers[i] = vec[i].c_str();
+    }
 }
 
 #undef ARCLIB_IMPLEMENTATION

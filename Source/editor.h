@@ -1,11 +1,13 @@
 #ifndef MAZE_GUI_H
 #define MAZE_GUI_H
 
-#include "arclib.h"
-#include "maze.h"
-#include "imgui.h"
+#include <imgui.h>
 #include <string>
 #include <vector>
+#include "arclib.h"
+#include "maze.h"
+#include "file_dialog.h"
+
 
 #define KEY_SELECT IsMouseButtonPressed(MOUSE_LEFT_BUTTON)
 #define KEY_REMOVE IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)
@@ -18,10 +20,15 @@
 using namespace std;
 namespace Gui = ImGui;
 
+// TODO: Clean up this class with states.
+// TODO: Split file loading from Maze class to editor.
+
 // This class is basically the entire editor.
 class MazeEditor {
 public:
-    Maze &maze;
+    Maze maze;
+    FileDialog fileDialog;
+    fs::path filePath = "";
 
     float tileSize = 16.0f;
     int fontSize = 20;
@@ -60,6 +67,7 @@ public:
     vector<string> tagsList;
     bool mazeHasFocus = false;
     bool editingCorners = false;
+    bool loadOnFile = false;
 
     bool showLabels = true;
     bool showJunctions = true;
@@ -69,7 +77,7 @@ public:
     bool showIdMap = false;
     bool showTags = true;
 
-    MazeEditor(Maze &targetMaze): maze(targetMaze)
+    MazeEditor()
     {
         raylibFont = GetFontDefault();
         CenterHome();
@@ -77,6 +85,8 @@ public:
         ColorToFloat3(gridColor, gridColorArr);
         ColorToFloat3(clearColor, clearColorArr);
         ColorToFloat3(tunnelColor, tunnelColorArr);
+        strcpy(mazeNameBuf, maze.name.c_str());
+        LoadMaze("Examples/test.json");
     }
 
     //
@@ -228,6 +238,35 @@ public:
             arcGlobal.camera.offset.y = GetScreenHeight() / 2;
         }
     }
+    void SaveMaze(fs::path path)
+    {
+        if (maze.ExportJson(path)) {
+            filePath = path;
+            cout << "Saved " << filePath << endl;
+        } else {
+            cout << "Invalid file " << filePath << endl;
+        }
+    }
+    void LoadMaze(fs::path path)
+    {
+        if (maze.ImportJson(path)) {
+            filePath = path;
+            cout << "Loaded " << filePath << endl;
+        } else {
+            cout << "Invalid file " << filePath << endl;
+        }
+    }
+    void NewMaze()
+    {
+        maze = Maze();
+        filePath = "";
+        cout << "New Maze" << endl;
+    }
+    bool HasValidFile()
+    {
+        ifstream stream(filePath);
+        return stream.good();
+    }
 
     //
     // Drawing methods.
@@ -257,7 +296,6 @@ public:
         if (showLabels) DrawJunctionLabels();
         DrawFPS(5, GetScreenHeight() - 15);
 
-
         Gui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_Once);
         Gui::SetNextWindowSize(ImVec2(350, 300), ImGuiCond_Once);
         Gui::Begin("Control Panel");
@@ -266,6 +304,13 @@ public:
         DrawGuiEditorSettings();
         DrawGuiMazeSettings();
         DrawGuiInspector();
+        if (fileDialog.Update()) {
+            if (loadOnFile) {
+                LoadMaze(fileDialog.targetPath);
+            } else {
+                SaveMaze(fileDialog.targetPath);
+            }
+        }
         Gui::PopItemWidth();
         Gui::End();
     }
@@ -441,6 +486,7 @@ public:
     {
         if (Gui::TreeNode("Maze")) {
             Gui::InputText("Maze Name", mazeNameBuf, IM_ARRAYSIZE(mazeNameBuf));
+            maze.name = string(mazeNameBuf);
 
             Gui::Text("View Toggles");
             if (Gui::BeginTable("Split", 3)) {
@@ -475,7 +521,7 @@ public:
                 Gui::InputText("Junction Name", nameBuf, IM_ARRAYSIZE(nameBuf));
             // The two buttons.
             if (hasSelectedCoord) {
-                Gui::Text(TextFormat("Tag Position (%d, %d)", selectedCoord.x, selectedCoord.y));
+                Gui::Text("Tag Position (%d, %d)", selectedCoord.x, selectedCoord.y);
                 Gui::InputText("Tag", tagBuf, IM_ARRAYSIZE(tagBuf));
                 Gui::SameLine();
                 if (Gui::Button("Add")) {
@@ -503,9 +549,25 @@ public:
         // The top bar.
          if (Gui::BeginMainMenuBar()) {
             if (Gui::BeginMenu("File")) {
-                if (Gui::MenuItem("New")) {}
-                if (Gui::MenuItem("Save", "Ctrl+S")) {}
-                if (Gui::MenuItem("Load")) {}
+                if (Gui::MenuItem("New")) {
+                    NewMaze();
+                }
+                if (Gui::MenuItem("Save", "")) {
+                    if (HasValidFile())
+                        SaveMaze(filePath);
+                    else {
+                        fileDialog.Open();
+                        loadOnFile = false;
+                    }
+                }
+                if (Gui::MenuItem("Save As", "")) {
+                    fileDialog.Open();
+                    loadOnFile = false;
+                }
+                if (Gui::MenuItem("Load")) {
+                    fileDialog.Open();
+                    loadOnFile = true;
+                }
                 Gui::EndMenu();
             }
             Gui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3, 0.3, 0.3, 1));    
@@ -513,8 +575,15 @@ public:
             Gui::PopStyleColor();
             Gui::EndMainMenuBar();
         }
+
+        int w = GetScreenWidth();
+        Gui::SetNextWindowPos(ImVec2(w-400, 19));
+        Gui::SetNextWindowSize(ImVec2(400, 0));
+        Gui::Begin("Info bar", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground);
+        Gui::TextWrapped("%s", filePath.string().c_str());
+        Gui::End();
     }
-    
+
     //
     // Utility methods.
     //

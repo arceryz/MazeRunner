@@ -3,6 +3,8 @@
 using namespace nlohmann;
 
 #include "maze.h"
+namespace fs = filesystem;
+
 #include "arclib.h"
 
 //
@@ -88,6 +90,10 @@ TagCoord::TagCoord(vector<string> &_tags, Coord _coord)
 Maze::Maze()
 {
     name = "Unnamed Maze";
+}
+void Maze::Erase()
+{
+    *this = Maze();
 }
 
 //
@@ -425,7 +431,7 @@ vector<TagCoord> Maze::GetTagsList()
 //
 // IO methods.
 //
-void Maze::ExportJson(string filename)
+bool Maze::ExportJson(fs::path filePath)
 {
     // Here we get all vertices and push them back.
     json junclist;
@@ -471,20 +477,24 @@ void Maze::ExportJson(string filename)
     output += "\t]\n";
 
     output += "}";
-    ofstream file(filename);
+    ofstream file(filePath);
+    if (!file.good())
+        return false;
     file << output;
     file.close();
 
-    printf("Written maze \"%s\" to json \"%s\"", name.c_str(), filename.c_str());
+    printf("Written maze \"%s\" to json \"%s\"", name.c_str(), filePath.string().c_str());
+    return true;
 }
-void Maze::ImportJson(string filename)
+bool Maze::ImportJson(fs::path filePath)
 {
-    ifstream stream(filename);
+    ifstream stream(filePath);
     if (!stream.good())
-        return;
+        return false;
     json imported = json::parse(stream);
     stream.close();
     name = imported["mazeName"];
+    Erase();
 
     json juncs = imported["junctions"];
     for (json junction: juncs) {
@@ -517,4 +527,5 @@ void Maze::ImportJson(string filename)
         vector<string> vec = tagCoord.at(2).get<vector<string>>();
         SetTagsAt(tx, ty, vec);
     }
+    return true;
 }

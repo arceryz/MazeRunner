@@ -17,9 +17,7 @@ int main() {
     rlImGuiSetup(true);
     ImGui::GetIO().IniFilename = NULL;
 
-    Maze maze;
-    maze.ImportJson("Examples/test.json");
-    MazeEditor editor(maze);
+    MazeEditor editor;
 
     while (!WindowShouldClose()) {
         editor.Update();
@@ -27,7 +25,7 @@ int main() {
 
         BeginDrawing();
         rlImGuiBegin();
-        
+
         editor.Draw();
 
         rlImGuiEnd();
