@@ -5,7 +5,7 @@
 #define ARCLIB_IMPLEMENTATION
 #include "arclib.h"
 
-#include "editor.h"
+#include "maze_editor.h"
 #include "maze.h"
 #include "rlImGui.h"
 

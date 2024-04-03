@@ -7,6 +7,7 @@
 #include "arclib.h"
 #include "maze.h"
 #include "file_dialog.h"
+#include "maze_renderer.h"
 
 
 #define KEY_SELECT IsMouseButtonPressed(MOUSE_LEFT_BUTTON)
@@ -27,21 +28,21 @@ namespace Gui = ImGui;
 class MazeEditor {
 public:
     Maze maze;
+    MazeRenderer mazeRenderer;
+    float tileSize = 16;
+
     FileDialog fileDialog;
     fs::path filePath = "";
-
-    float tileSize = 16.0f;
-    int fontSize = 20;
-    int tunnelSize = 7;
-    Font raylibFont;
+    
     Coord mouseCoord = {};
     Vector2 mousePos = {};
     Vector2 mouseWorld = {};
 
-    float junctionColorArr[3];  Color junctionColor = { 15, 255, 0, 255 };
-    float gridColorArr[3];      Color gridColor = { 13, 64, 0, 255 };
-    float tunnelColorArr[3];    Color tunnelColor = { 10, 68, 0, 255 };
-    float clearColorArr[3];     Color clearColor = { 1, 14, 0, 255 };
+    Color clearColor = { 1, 14, 0, 255 };
+    float junctionColorArr[3]; 
+    float gridColorArr[3];      
+    float tunnelColorArr[3];    
+    float clearColorArr[3];     
 
     JunctionID mouseJunction = 0;
     Tunnel mouseTunnel = {};
@@ -79,13 +80,14 @@ public:
 
     MazeEditor()
     {
-        raylibFont = GetFontDefault();
         CenterHome();
-        ColorToFloat3(junctionColor, junctionColorArr);
-        ColorToFloat3(gridColor, gridColorArr);
+        ColorToFloat3(mazeRenderer.junctionColor, junctionColorArr);
+        ColorToFloat3(mazeRenderer.gridColor, gridColorArr);
         ColorToFloat3(clearColor, clearColorArr);
-        ColorToFloat3(tunnelColor, tunnelColorArr);
+        mazeRenderer.junctionFillColor = clearColor;
+        ColorToFloat3(mazeRenderer.tunnelColor, tunnelColorArr);
         strcpy(mazeNameBuf, maze.name.c_str());
+        mazeRenderer.SetMaze(&maze);
         LoadMaze("Examples/test.json");
     }
 
@@ -97,8 +99,8 @@ public:
         // Blackboard.
         mousePos = GetMousePosition();
         mouseWorld = GetScreenToWorld2D(mousePos, arcGlobal.camera);
-        mouseCoord.x = (int)floorf(mouseWorld.x / tileSize);
-        mouseCoord.y = (int)floorf(mouseWorld.y / tileSize);
+        mouseCoord.x = (int)floorf(mouseWorld.x / mazeRenderer.tileSize);
+        mouseCoord.y = (int)floorf(mouseWorld.y / mazeRenderer.tileSize);
         mouseJunction = maze.GetJunctionAt(mouseCoord.x, mouseCoord.y);
         mouseTunnel = maze.GetTunnelAt(mouseCoord.x, mouseCoord.y);
         mazeHasFocus = !Gui::GetIO().WantCaptureMouse;
@@ -151,6 +153,23 @@ public:
             topCorner.x, topCorner.y, botCorner.x, botCorner.y);
         statusBarText = string(str);
     }
+    void ConfigureTags()
+    {
+        if (!hasSelectedCoord)
+            return;
+
+        // Trim whitespace.
+        for (int i = 0; i < tagsList.size(); i++) {
+            string &s = tagsList[i];
+            s.erase(s.find_last_not_of(' ')+1);
+            s.erase(0, s.find_first_not_of(' '));
+            
+            // Erase empty trash.
+            if (s.size() == 0)
+                tagsList.erase(tagsList.begin()+i);
+        }
+        maze.SetTagsAt(selectedCoord.x, selectedCoord.y, tagsList);
+    }
     void ConfigureMainJunction() 
     {
         if (mainJunctionID == 0)
@@ -169,29 +188,10 @@ public:
             botCornerWorld = {  (r.bot.x+coords.x) * tileSize, (r.bot.y+coords.y) * tileSize };
         }
     }
-    void SelectCoord(Coord coord)
-    {
-        tagsList = maze.GetTagsAt(coord.x, coord.y);
-        selectedCoord = coord;
-        hasSelectedCoord = true;
-    }
-    void ConfigureTags()
-    {
-        if (!hasSelectedCoord)
-            return;
-
-        // Trim whitespace.
-        for (int i = 0; i < tagsList.size(); i++) {
-            string &s = tagsList[i];
-            s.erase(s.find_last_not_of(' ')+1);
-            s.erase(0, s.find_first_not_of(' '));
-            
-            // Erase empty trash.
-            if (s.size() == 0)
-                tagsList.erase(tagsList.begin()+i);
-        }
-        maze.SetTagsAt(selectedCoord.x, selectedCoord.y, tagsList);
-    }
+    
+    // 
+    // Selection.
+    //
     void SetMainJunction(JunctionID id)
     {
         mainJunctionID = id;
@@ -200,12 +200,19 @@ public:
 
         Coord coords = maze.GetJunctionCoord(id);
         JunctionRect r = maze.GetJunctionRect(j.id);
+        float tileSize = mazeRenderer.tileSize;
         topCornerWorld = {  (r.top.x+coords.x) * tileSize, (r.top.y+coords.y) * tileSize };
         botCornerWorld = {  (r.bot.x+coords.x) * tileSize, (r.bot.y+coords.y) * tileSize };
     }
     void SetSecondJunction(JunctionID id)
     {
         secondJunctionID = id;
+    }
+    void SelectCoord(Coord coord)
+    {
+        tagsList = maze.GetTagsAt(coord.x, coord.y);
+        selectedCoord = coord;
+        hasSelectedCoord = true;
     }
     void ClearSelections()
     {
@@ -232,12 +239,17 @@ public:
                 break;
         }
         if (homeId > 0) {
+            float tileSize = mazeRenderer.tileSize;
             Coord homeCoord = maze.GetJunctionCoord(homeId);
             arcGlobal.camera.target = { (float)homeCoord.x * tileSize, (float)homeCoord.y * tileSize };
             arcGlobal.camera.offset.x = GetScreenWidth() / 2;
             arcGlobal.camera.offset.y = GetScreenHeight() / 2;
         }
     }
+    
+    //
+    // IO Methods.
+    //
     void SaveMaze(fs::path path)
     {
         if (maze.ExportJson(path)) {
@@ -276,9 +288,9 @@ public:
         BeginMode2D(arcGlobal.camera);
         ClearBackground(clearColor);
 
-        if (showGrid) DrawGrid();
-        DrawTunnels();
-        if (showJunctions) DrawJunctions();
+        if (showGrid) mazeRenderer.DrawGrid();
+        mazeRenderer.DrawTunnels();
+        if (showJunctions) mazeRenderer.DrawJunctions();
         DrawSelectionHighlight();
 
         // Junction corner gizmos.
@@ -291,9 +303,9 @@ public:
 
         EndMode2D();
 
-        if (showTags) DrawTags();
-        if (showIdMap) DrawIdMap();
-        if (showLabels) DrawJunctionLabels();
+        if (showTags) mazeRenderer.DrawTags();
+        if (showIdMap) mazeRenderer.DrawIdMap();
+        if (showLabels) mazeRenderer.DrawJunctionLabels();
         DrawFPS(5, GetScreenHeight() - 15);
 
         Gui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_Once);
@@ -314,130 +326,9 @@ public:
         Gui::PopItemWidth();
         Gui::End();
     }
-    void DrawJunctionLabels() 
-    {
-        vector<JunctionID> junctions = maze.GetJunctionList();
-        for (JunctionID id: junctions){
-            Junction &j = maze.GetJunction(id);
-            Rectangle rect = GetJunctionRect(id);
-            const char *text = j.name.c_str();
-
-            Vector2 targetPosWorld = { rect.x - 5, rect.y - 5 };
-            Vector2 tilePosWorld = { rect.x, rect.y };
-            Vector2 targetPos = GetWorldToScreen2D(targetPosWorld, arcGlobal.camera);
-            Vector2 tilePos = GetWorldToScreen2D(tilePosWorld, arcGlobal.camera);
-
-            int textWidth = MeasureText(text, fontSize);
-            Vector2 textPos = { targetPos.x - textWidth, targetPos.y - fontSize };
-            
-            float w = 2.0;
-            textPos.y -= w;
-
-            DrawLineZ(tilePos, targetPos, WHITE, w, 1.0);
-            DrawLineZ(targetPos, { textPos.x - 3, targetPos.y }, WHITE, w, 1.0);
-            DrawText(text, textPos.x, textPos.y, fontSize, WHITE);
-        }
-    }
-    void DrawJunctions()
-    {
-        vector<JunctionID> junctions = maze.GetJunctionList();
-        for (JunctionID id: junctions){
-            Junction &j = maze.GetJunction(id);
-            Rectangle rect = GetJunctionRect(id);
-            DrawRectangleRec(rect, clearColor);
-            DrawRectangleLinesZ(rect, 1.0, junctionColor, 0, 1);
-        }
-    }
-    void DrawTunnels()
-    {
-        vector<Tunnel> tunnels = maze.GetTunnelList();
-        for(Tunnel t: tunnels){
-            Coord coord1 = maze.GetJunctionCoord(t.from);
-            Coord coord2 = maze.GetJunctionCoord(t.to);
-            Vector2 pos1 = Vector2Scale({ coord1.x+0.5f, coord1.y+0.5f }, tileSize);
-            Vector2 pos2 = Vector2Scale({ coord2.x+0.5f, coord2.y+0.5f }, tileSize);
-            DrawLineZ(pos1, pos2, tunnelColor, tunnelSize, 0.5);
-        }
-    }
-    void DrawGrid()
-    {
-        float f = Clamp(1-0.3/arcGlobal.camera.zoom, 0, 1);
-        if (f < 0.01)
-            return;
-        Color color = LerpColor(BLACK, gridColor, f);
-
-        Rectangle worldRect = GetCameraWorldRect(arcGlobal.camera);
-        int w = worldRect.width / tileSize;
-        int h = worldRect.height / tileSize;
-        
-        Vector2 c = SnapGrid({ worldRect.x, worldRect.y }, tileSize);
-        int cx = (int)c.x;
-        int cy = (int)c.y;
-
-        for (int x = 0; x < w+10; x++) {
-            DrawLine(cx+x*tileSize, cy, cx+x*tileSize, cy+worldRect.height+tileSize, color);
-        }
-
-        for (int y = 0; y < h+10; y++) {
-            DrawLine(cx, cy+y*tileSize, cx+worldRect.width+tileSize, cy+y*tileSize, color);
-        }
-    }
-    void DrawIdMap()
-    {
-        if (arcGlobal.camera.zoom < 2)
-            return;
-        Rectangle worldRect = GetCameraWorldRect(arcGlobal.camera);
-        int tx = worldRect.x / tileSize;
-        int ty = worldRect.y / tileSize;
-        int w = worldRect.width / tileSize;
-        int h = worldRect.height / tileSize;
-
-        for (int x = 0; x < w+4; x++) {
-            for (int y = 0; y < h+4; y++) {
-                int gx = tx+x;
-                int gy = ty+y;
-                JunctionID id = maze.GetJunctionAt(gx, gy);
-
-                const char *text = TextFormat("%d", id);
-                int w = MeasureText(text, 1); 
-                Vector2 screenPos = GetWorldToScreen2D({ gx*tileSize, gy*tileSize }, arcGlobal.camera);
-
-                DrawRectangle(screenPos.x-2, screenPos.y, w+4, 10, clearColor);
-                DrawText(text, screenPos.x, screenPos.y, 1, DARKGRAY);
-            }
-        }
-    }
-    void DrawTags()
-    {
-        if (arcGlobal.camera.zoom < 2)
-            return;
-        Rectangle worldRect = GetCameraWorldRect(arcGlobal.camera);
-        int tx = worldRect.x / tileSize;
-        int ty = worldRect.y / tileSize;
-        int w = worldRect.width / tileSize;
-        int h = worldRect.height / tileSize;
-        int spacing = 15;
-
-        for (int x = 0; x < w+4; x++) {
-            for (int y = 0; y < h+4; y++) {
-                int gx = tx+x;
-                int gy = ty+y;
-                
-                vector<string> tags = maze.GetTagsAt(gx, gy);
-
-                for (int i = 0; i < tags.size(); i++) {
-                    const char *text = tags[i].c_str();
-                    int w = MeasureText(text, 15); 
-                    Vector2 screenPos = GetWorldToScreen2D({ gx*tileSize, gy*tileSize }, arcGlobal.camera);
-                    screenPos.y += spacing*i;
-                    DrawRectangle(screenPos.x-2, screenPos.y, w+4, 15, clearColor);
-                    DrawText(text, screenPos.x, screenPos.y, 15, BLUE);
-                }
-            }
-        }
-    }
     void DrawTileHighlight()
     {
+        float tileSize = mazeRenderer.tileSize;
         Rectangle rect = {
             (float)mouseCoord.x * tileSize,
             (float)mouseCoord.y * tileSize,
@@ -448,34 +339,31 @@ public:
     void DrawSelectionHighlight()
     {
         if (mainJunctionID > 0) {
-            DrawRectangleLinesZ(GetJunctionRect(mainJunctionID), 1, MAGENTA, 2);
+            DrawRectangleLinesZ(mazeRenderer.GetJunctionRect(mainJunctionID), 1, MAGENTA, 2);
         } else if (hasSelectedCoord) {
             Rectangle r = { selectedCoord.x*tileSize, selectedCoord.y*tileSize, tileSize, tileSize };
             DrawRectangleLinesZ(r, 1, MAGENTA, 2);
         } 
         if (secondJunctionID > 0) {
-            DrawRectangleLinesZ(GetJunctionRect(secondJunctionID), 1, GREEN, 3);
+            DrawRectangleLinesZ(mazeRenderer.GetJunctionRect(secondJunctionID), 1, GREEN, 3);
         }
     }
-    
-    //
-    // Gui drawing.
-    //
     void DrawGuiEditorSettings() 
     {
         if (Gui::TreeNode("Editor")) {
-            Gui::SliderInt("Font Size", &fontSize, 10, 30);
-            Gui::SliderInt("Tunnel Size", &tunnelSize, 1, tileSize);
+            Gui::SliderInt("Font Size", &mazeRenderer.fontSize, 10, 30);
+            Gui::SliderInt("Tunnel Size", &mazeRenderer.tunnelSize, 1, tileSize);
 
             if (Gui::TreeNode("Colors")) {
                 Gui::ColorEdit3("Junction", junctionColorArr);
                 Gui::ColorEdit3("Grid", gridColorArr);
                 Gui::ColorEdit3("Tunnel", tunnelColorArr);
                 Gui::ColorEdit3("Clear", clearColorArr);
-                junctionColor = ColorFromNormalized3(junctionColorArr);
-                gridColor = ColorFromNormalized3(gridColorArr);
+                mazeRenderer.junctionColor = ColorFromNormalized3(junctionColorArr);
+                mazeRenderer.gridColor = ColorFromNormalized3(gridColorArr);
+                mazeRenderer.tunnelColor = ColorFromNormalized3(tunnelColorArr);
                 clearColor = ColorFromNormalized3(clearColorArr);
-                tunnelColor = ColorFromNormalized3(tunnelColorArr);
+                mazeRenderer.junctionFillColor = clearColor;
                 Gui::TreePop();
             }
             Gui::TreePop();
@@ -583,23 +471,6 @@ public:
         Gui::TextWrapped("%s", filePath.string().c_str());
         Gui::End();
     }
-
-    //
-    // Utility methods.
-    //
-    Rectangle GetJunctionRect(JunctionID id)
-    {
-        JunctionRect r = maze.GetJunctionRect(id);
-        Coord coord = maze.GetJunctionCoord(id);
-        int width = r.bot.x - r.top.x;
-        int height = r.bot.y - r.top.y;
-        Rectangle rect = {
-            (coord.x+r.top.x) * tileSize,
-            (coord.y+r.top.y) * tileSize,
-            width*tileSize, height*tileSize
-        };
-        return rect;
-    } 
 };
 
 #endif
