@@ -298,8 +298,8 @@ public:
         // Junction corner gizmos.
         editingCorners = false;
         if (mainJunctionID > 0) {
-            editingCorners |= PositionGizmo(topCornerWorld, topCornerRel, topCornerGrabbed, 3, LIGHTGRAY, tileSize);
-            editingCorners |= PositionGizmo(botCornerWorld, botCornerRel, botCornerGrabbed, 3, GRAY, tileSize);
+            editingCorners |= PositionGizmo(topCornerWorld, topCornerRel, topCornerGrabbed, 3, GRAY, LIGHTGRAY, tileSize);
+            editingCorners |= PositionGizmo(botCornerWorld, botCornerRel, botCornerGrabbed, 3, GRAY, LIGHTGRAY, tileSize);
         }
         if (mazeHasFocus && !editingCorners) DrawTileHighlight();
 

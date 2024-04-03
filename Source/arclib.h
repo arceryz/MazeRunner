@@ -39,7 +39,7 @@ void DrawRectangleLinesZ(Rectangle rect, float lineWidth, Color color, float off
 void DrawLineZ(Vector2 from, Vector2 to, Color color, float thickness, float zoomLOD=2);
 Rectangle GetCameraWorldRect(Camera2D camera);
 Vector2 SnapGrid(Vector2 vec, float tileSize, float offset=0);
-bool PositionGizmo(Vector2 &position, Vector2 &anchor, bool &grabbed, float size, Color color, float tileSize=-1.0);
+bool PositionGizmo(Vector2 &position, Vector2 &anchor, bool &grabbed, float size, Color baseColor, Color hoverColor, float tileSize=-1.0);
 Color LerpColor(Color from, Color to, float factor);
 Color ColorFromNormalized3(float arr[3]);
 void ColorToFloat3(Color col, float arr[3]);
@@ -146,32 +146,36 @@ Vector2 SnapGrid(Vector2 vec, float tileSize, float offset)
 {
     return { floorf(vec.x/ tileSize + offset) * tileSize, floorf(vec.y / tileSize + offset) * tileSize };
 }
-bool PositionGizmo(Vector2 &position, Vector2 &anchor, bool &grabbed, float size, Color color, float tileSize)
+bool PositionGizmo(Vector2 &position, Vector2 &anchor, bool &grabbed, float size, Color baseColor, Color hoverColor, float tileSize)
 {
     Vector2 circlePos = tileSize > 0 ? SnapGrid(position, tileSize, 0.5) : position;
-    DrawCircleV(position, 2, color);
-    DrawCircleLinesV(circlePos, size, color);
-
+    Color color = baseColor;
     Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), arcGlobal.camera);
+
+    Vector2 d = Vector2Subtract(position, mouseWorld);
+    bool isHovering = d.x*d.x + d.y*d.y < size*size;
 
     if (grabbed) {
         position = Vector2Add(anchor, mouseWorld);
         if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))   
             grabbed = false;
-        return true;
+        isHovering = true;
+        color = hoverColor;
     } 
     else {
-        Vector2 d = Vector2Subtract(position, mouseWorld);
-        bool isHovering = d.x*d.x + d.y*d.y < size*size;
-
-        if (isHovering && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            grabbed = true;
-            anchor = Vector2Subtract(position, mouseWorld);
+        if (isHovering) {
+            color = hoverColor;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                grabbed = true;
+                anchor = Vector2Subtract(position, mouseWorld);
+            }
         }
         if (tileSize > 0)
             position = SnapGrid(position, tileSize, 0.5);
-        return isHovering;
     }
+    DrawCircleV(position, 2, color);
+    DrawRing(circlePos, size, size+1, 0, 360, 32, color);
+    return isHovering;
 }
 
 Color LerpColor(Color from, Color to, float factor)
