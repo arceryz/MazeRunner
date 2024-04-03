@@ -9,6 +9,8 @@
 #include "file_dialog.h"
 #include "maze_renderer.h"
 
+using namespace std;
+
 
 #define KEY_SELECT IsMouseButtonPressed(MOUSE_LEFT_BUTTON)
 #define KEY_REMOVE IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)
